@@ -1,0 +1,154 @@
+version: '3'
+
+services:
+  jupyter:
+    build:
+      context: .
+      dockerfile: jupyter.Dockerfile
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./pyspark_config/spark-defaults.conf:/usr/local/spark/conf/spark-defaults.conf
+    depends_on:
+      - spark-master
+      - namenode
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.5
+
+  spark-master:
+    image: apache/spark:3.5.1-scala2.12-java17-python3-r-ubuntu
+    container_name: spark-master
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    command: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master" ]
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.6
+
+  spark-worker:
+    image: apache/spark:3.5.1-scala2.12-java17-python3-r-ubuntu
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+    depends_on:
+      - spark-master
+    command: [ "/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077" ]
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.7
+
+  namenode:
+    image: apache/hadoop:3.3.5
+    container_name: namenode
+    hostname: namenode
+    user: root
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+    volumes:
+      - ./hadoop_namenode:/opt/hadoop/data/nameNode
+      - ./hadoop_config:/opt/hadoop/etc/hadoop
+      - ./start-hdfs.sh:/start-hdfs.sh
+      - ./notebooks:/home/jovyan/work
+      - ./sync-notebooks.sh:/sync-notebooks.sh
+    ports:
+      - "9870:9870"
+    command:
+      - /bin/bash
+      - -c
+      - |
+        /bin/bash /start-hdfs.sh &
+        /bin/bash /sync-notebooks.sh
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.2
+
+  datanode1:
+    image: apache/hadoop:3.3.5
+    container_name: datanode1
+    hostname: datanode1
+    user: root
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+    volumes:
+      - ./hadoop_datanode1:/opt/hadoop/data/dataNode
+      - ./hadoop_config:/opt/hadoop/etc/hadoop
+      - ./init-datanode.sh:/init-datanode.sh
+    depends_on:
+      - namenode
+    command: [ "/bin/bash", "/init-datanode.sh" ]
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.3
+
+  datanode2:
+    image: apache/hadoop:3.3.5
+    container_name: datanode2
+    hostname: datanode2
+    user: root
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+    volumes:
+      - ./hadoop_datanode2:/opt/hadoop/data/dataNode
+      - ./hadoop_config:/opt/hadoop/etc/hadoop
+      - ./init-datanode.sh:/init-datanode.sh
+    depends_on:
+      - namenode
+    command: [ "/bin/bash", "/init-datanode.sh" ]
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.4
+
+  datanode3:
+    image: apache/hadoop:3.3.5
+    container_name: datanode3
+    hostname: datanode3
+    user: root
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+    volumes:
+      - ./hadoop_datanode3:/opt/hadoop/data/dataNode
+      - ./hadoop_config:/opt/hadoop/etc/hadoop
+      - ./init-datanode.sh:/init-datanode.sh
+    depends_on:
+      - namenode
+    command: [ "/bin/bash", "/init-datanode.sh" ]
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.8
+
+  datanode4:
+    image: apache/hadoop:3.3.5
+    container_name: datanode4
+    hostname: datanode4
+    user: root
+    environment:
+      - HADOOP_HOME=/opt/hadoop
+    volumes:
+      - ./hadoop_datanode4:/opt/hadoop/data/dataNode
+      - ./hadoop_config:/opt/hadoop/etc/hadoop
+      - ./init-datanode.sh:/init-datanode.sh
+    depends_on:
+      - namenode
+    command: [ "/bin/bash", "/init-datanode.sh" ]
+    networks:
+      hdfs_network:
+        ipv4_address: 172.20.0.9
+
+networks:
+  hdfs_network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
