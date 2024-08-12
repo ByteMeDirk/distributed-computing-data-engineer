@@ -66,6 +66,7 @@ sudo tee /opt/hadoop/etc/hadoop/hdfs-site.xml > /dev/null <<EOL
 </configuration>
 EOL
 
+# Set Hadoop environment variables
 echo "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-armhf" | sudo tee -a /opt/hadoop/etc/hadoop/hadoop-env.sh
 echo "export HADOOP_OS_TYPE=\${HADOOP_OS_TYPE:-\$(uname -s)}" | sudo tee -a /opt/hadoop/etc/hadoop/hadoop-env.sh
 
