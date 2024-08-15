@@ -1,6 +1,3 @@
-Certainly! I'll create a README file based on your successful HDFS setup using Docker Compose. This README will guide
-others through replicating your configuration.
-
 # HDFS Cluster Setup with Docker Compose
 
 This project demonstrates how to set up a Hadoop Distributed File System (HDFS) cluster using Docker Compose. It's
