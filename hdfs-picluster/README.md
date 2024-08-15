@@ -41,283 +41,319 @@ While not suitable for enterprise-level tasks, your Raspberry Pi HDFS cluster co
 So, if you're ready to hop into this quirky tech, let's dive in and turn those idle Raspberry Pis into a mini
 big data powerhouse!
 
-## 1. Configuring Static IP Addresses
+## Introduction
 
-To ensure consistent network connectivity, set up static IP addresses for each Raspberry Pi:
+This guide walks you through setting up a Hadoop Distributed File System (HDFS) cluster using Raspberry Pi devices. It's
+an educational project designed to provide hands-on experience with distributed systems, Linux, and big data
+technologies on a small scale.
 
-1. **Identify network information:**
-   ```shell
-   ip addr show
-   ip route | grep default
-   ```
+## Prerequisites
 
-2. **Edit the DHCP configuration:**
-   ```shell
-   sudo nano /etc/dhcpcd.conf
-   ```
+- Two or more Raspberry Pi 4B devices (one for NameNode, others for DataNodes)
+- Raspberry Pi OS (64-bit recommended) installed on all devices
+- Network connectivity between all Raspberry Pi devices
+- Basic knowledge of Linux commands
+- Minimum 4GB RAM and 32GB storage on each Raspberry Pi
 
-3. **Add static IP configuration:**
-   ```text
-   interface eth0
-   static ip_address=<STATIC_IP>/24
-   static routers=192.168.1.1
-   static domain_name_servers=192.168.1.1 8.8.8.8
-   ```
-   This configuration establishes a static IP address for the Raspberry Pi, crucial for a stable HDFS cluster. It
-   ensures consistency, predictability, and ease of management. Static IPs also ensure consistent DNS resolution, making
-   HDFS operations more reliable. Manually configuring network parameters reduces the risk of DHCP-related issues,
-   providing a solid networking foundation.
+## 1. Initial Setup
 
-4. **Apply changes:**
-   ```shell
-   sudo reboot
-   ```
+### 1.1 Configure Static IP Addresses
 
-5. **Verify configuration:**
-   ```shell
-   ip addr show
-   ```
+For each Raspberry Pi:
 
-## 2. Configuring Hostname Resolution
+1. Identify network information:
 
-Configuring hostname resolution is crucial for setting up an HDFS cluster as it enables seamless communication between
-nodes. By assigning unique hostnames to each Raspberry Pi and updating the hosts file, you create a local DNS-like
-system. This allows the nodes to refer to each other by name rather than IP address, which is more convenient and
-maintainable. It's particularly important for Hadoop configuration files where you specify the NameNode and DataNode
-locations. This setup ensures that even if IP addresses change, the cluster can still function properly as long as the
-hostname mappings are updated, providing flexibility and ease of management in your HDFS setup.
+```shell
+ip addr show
+ip route | grep default
+```
 
-1. **Set hostnames:**
-   ```shell
-   sudo hostnamectl set-hostname <HOSTNAME>  # e.g., pimaster for master, piworker1 for worker
-   ```
+2. Edit the DHCP configuration:
 
-2. **Update hosts file:**
-   ```shell
-   sudo nano /etc/hosts
-   ```
+```shell
+sudo nano /etc/dhcpcd.conf  
+```
 
-3. **Add hostnames:**
-   ```text
-   <MASTER_IP> <MASTER_HOSTNAME>
-   <WORKER1_IP> <WORKER1_HOSTNAME>
-   # Add more worker entries as needed
-   ```
+3. Add static IP configuration (adjust values as needed):
 
-## 3. Setting up Java and Hadoop
+```shell
+interface eth0
+static ip_address=<ip_address>/24
+static routers=192.168.1.1
+static domain_name_servers=192.168.1.1 8.8.8.8
+```
 
-This section on setting up Java and Hadoop is crucial for establishing the foundational software environment required
-for running HDFS on Raspberry Pi.
+4. Apply changes:
 
-The process involves updating the system, installing Java (which Hadoop requires to run), and setting up Hadoop itself.
-It ensures that all necessary dependencies are in place, creates a dedicated user for Hadoop operations, and configures
-the environment variables and file paths essential for Hadoop's functionality. The configuration files (core-site.xml
-and hdfs-site.xml) are set up to define the HDFS cluster's basic structure and behavior.
+```shell
+sudo reboot
+```
 
-1. **Update system packages:**
-   ```shell
-   sudo apt-get update && sudo apt-get upgrade -y
-   sudo apt-get -f install
-   sudo apt-get clean && sudo apt-get autoclean
-   ```
+5. Verify configuration:
 
-2. **Install OpenJDK:**
-   ```shell
-   sudo apt install openjdk-17-jdk
-   ```
+```shell
+ip addr show
+```
 
-3. **Verify Java installation:**
-   ```shell
-   java -version
-   ```
+### 1.2 Configure Hostname Resolution
 
-4. **Set JAVA_HOME:**
-   Add to ~/.bashrc:
-   ```shell
-   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-armhf
-   ```
+**On each Raspberry Pi:**
 
-5. **Create Hadoop user and group:**
-   ```shell
-   sudo addgroup hadoop
-   sudo adduser --ingroup hadoop hadoop
-   sudo usermod -aG sudo hadoop
-   ```
+1. Set unique hostnames:
 
-6. **Install Hadoop:**
-   ```shell
-   wget https://downloads.apache.org/hadoop/common/hadoop-3.4.0/hadoop-3.4.0.tar.gz
-   tar -xzvf hadoop-3.4.0.tar.gz
-   sudo mv hadoop-3.4.0 /opt/hadoop
-   ```
+```shell
+sudo hostnamectl set-hostname namenode  # For the master node
+sudo hostnamectl set-hostname datanode1  # For the first worker node
+# Repeat for additional nodes
+```
 
-7. **Configure Hadoop:**
+2. Update hosts file:
 
-   Edit core-site.xml:
-   ```shell
-   sudo nano /opt/hadoop/etc/hadoop/core-site.xml
-   ```
-   Add:
-   ```xml
-   <configuration>
-       <property>
-           <name>fs.defaultFS</name>
-           <value>hdfs://<MASTER_HOSTNAME>:9000</value>
-       </property>
-   </configuration>
-   ```
+```shell
+sudo nano /etc/hosts
+```
 
-   Edit hdfs-site.xml:
-   ```shell
-   sudo nano /opt/hadoop/etc/hadoop/hdfs-site.xml
-   ```
-   Add:
-   ```xml
-   <configuration>
-       <property>
-           <name>dfs.replication</name>
-           <value>1</value>
-       </property>
-       <property>
-           <name>dfs.namenode.name.dir</name>
-           <value>/opt/hadoop/data/nameNode</value>
-       </property>
-       <property>
-           <name>dfs.datanode.data.dir</name>
-           <value>/opt/hadoop/data/dataNode</value>
-       </property>
-   </configuration>
-   ```
+3. Add entries for all nodes:
 
-   Edit hadoop-env.sh:
-   ```shell
-   sudo nano /opt/hadoop/etc/hadoop/hadoop-env.sh
-   ```
-   Add or modify:
-   ```shell
-   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-armhf
-   export HADOOP_OS_TYPE=${HADOOP_OS_TYPE:-$(uname -s)}
-   ```
+```shell
+<ip_address> namenode
+<ip_address> datanode1
+# Add more entries as needed
+```
 
-8. **Set Hadoop environment:**
-   Add to ~/.bashrc:
-   ```shell
-   export HADOOP_HOME=/opt/hadoop
-   export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
-   ```
-   Then run:
-   ```shell
-   source ~/.bashrc
-   ```
+4. Reboot to apply changes:
 
-9. **Verify Hadoop installation:**
-   ```shell
-   hadoop version
-   ```
+```shell
+sudo reboot
+```
 
-10. **Create necessary directories:**
-    ```shell
-    sudo mkdir -p /opt/hadoop/data/nameNode
-    sudo mkdir -p /opt/hadoop/data/dataNode
-    sudo chown -R hadoop:hadoop /opt/hadoop/data
-    ```
+5. Test connectivity:
 
-## 4. Setting up SSH
+```shell
+ping namenode
+ping datanode1
+```
 
-Setting up SSH for HDFS clusters is crucial for passwordless authentication, automated operations, security, efficiency,
-Hadoop requirements, and seamless data transfer. It eliminates manual password entry, is impractical in distributed
-systems, and facilitates smooth data transfer across the cluster. This ensures secure and automatic communication
-between nodes, crucial for HDFS functionality.
+## 2. Install Java and Hadoop
+
+**Perform these steps on all nodes:**
+
+1. Update system packages:
+
+```shell
+sudo apt update && sudo apt upgrade -y && sudo apt -f install -y && sudo apt clean && sudo apt autoclean
+```
+
+2. Install OpenJDK:
+
+```shell
+sudo apt install openjdk-17-jdk -y
+```
+
+To find the location of the Java installation, run:
+
+```shell
+sudo update-alternatives --config java
+```
+
+3. Verify Java installation:
+
+```shell
+java -version
+```
+
+4. Set JAVA_HOME:
+
+```shell
+echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64' >> ~/.bashrc
+source ~/.bashrc
+```
+
+5. Create Hadoop user and group:
+
+```shell
+sudo addgroup hadoop
+sudo adduser --ingroup hadoop hadoop
+sudo usermod -aG sudo hadoop
+```
+
+6. Switch to hadoop user:
+
+```shell
+su - hadoop
+```
+
+7. Install Hadoop:
+
+```shell
+wget https://downloads.apache.org/hadoop/common/hadoop-3.4.0/hadoop-3.4.0.tar.gz && tar -xzvf hadoop-3.4.0.tar.gz && rm hadoop-3.4.0.tar.gz && sudo mv hadoop-3.4.0 /opt/hadoop
+```
+
+8. Set Hadoop environment variables:
+
+```shell
+echo 'export HADOOP_HOME=/opt/hadoop' >> ~/.bashrc
+echo 'export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin' >> ~/.bashrc
+source ~/.bashrc
+```
+
+9. Configure Hadoop:
+
+```shell
+sudo nano /opt/hadoop/etc/hadoop/core-site.xml
+```
+
+Add:
+
+```xml
+
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://namenode:9000</value>
+    </property>
+</configuration>
+```
+
+Edit hdfs-site.xml:
+
+```shell
+sudo nano /opt/hadoop/etc/hadoop/hdfs-site.xml
+```
+
+Add:
+
+```xml
+
+<configuration>
+    <property>
+        <name>dfs.replication</name>
+        <value>1</value>
+    </property>
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>/opt/hadoop/data/nameNode</value>
+    </property>
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>/opt/hadoop/data/dataNode</value>
+    </property>
+    <property>
+        <name>dfs.webhdfs.enabled</name>
+        <value>true</value>
+    </property>
+</configuration>
+```
+
+Edit hadoop-env.sh:
+
+```shell
+sudo nano /opt/hadoop/etc/hadoop/hadoop-env.sh
+```
+
+Add or modify:
+
+```shell
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+export HADOOP_OS_TYPE=${HADOOP_OS_TYPE:-$(uname -s)}
+```
+
+10. Create necessary directories:
+
+```shell
+sudo mkdir -p /opt/hadoop/data/nameNode
+sudo mkdir -p /opt/hadoop/data/dataNode
+sudo chown -R hadoop:hadoop /opt/hadoop
+sudo chmod -R 755 /opt/hadoop
+```
+
+11. Verify Hadoop installation:
+
+```shell
+hadoop version
+```
+
+## 3. Set up SSH
 
 Perform these steps on all nodes:
 
 1. Generate SSH key pair:
-   ```shell
-   ssh-keygen -t rsa -b 4096
-   ```
-   Ignore pass-phrases, these are not needed.
+
+```shell
+ssh-keygen -t rsa -b 4096
+```
+
+_Press Enter for all prompts to use default settings and no passphrase._
 
 2. Set proper permissions:
-   ```shell
-   chmod 700 ~/.ssh
-   ```
 
-3. Add public key to authorized keys:
-   ```shell
-   cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-   ```
+```shell
+chmod 700 ~/.ssh
+```
+
+3. Add public key to authorized_keys:
+
+```shell
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+```
 
 4. Copy public key to other nodes:
-   ```shell
-   ssh-copy-id hadoop@<OTHER_NODE_HOSTNAME>
-   ```
+
+From namenode to datanodes:
+
+```shell
+ssh-copy-id hadoop@datanode1
+```
+
+From datanodes to namenode:
+
+```shell
+ssh-copy-id hadoop@namenode
+```
 
 5. Test SSH connection:
-   ```shell
-   ssh hadoop@<OTHER_NODE_HOSTNAME>
-   ```
 
-## 5. Initializing and Starting HDFS
+```shell
+ssh hadoop@datanode1
+ssh hadoop@namenode
+```
 
-The process of initializing and starting HDFS is crucial for a distributed file system. It starts with formatting the
-NameNode, creating and setting permissions for directories, and configuring worker nodes. Starting HDFS brings the
-entire system online, addresses potential issues like stack guard warnings and native library problems, and confirms the
-system's health and capacity. These steps transform the configured Raspberry Pis into a functioning HDFS cluster ready
-for data storage and processing tasks.
+## 4. Initialize and Start HDFS
 
-1. Format the NameNode (on master only):
-   ```shell
-   /opt/hadoop/bin/hdfs namenode -format
-   ```
+**On the NameNode:**
 
-2. Create necessary directories and set permissions:
-   ```shell
-   sudo mkdir -p /opt/hadoop/logs
-   sudo chown -R hadoop:hadoop /opt/hadoop
-   sudo chmod -R 755 /opt/hadoop
-   ```
+1. Format the NameNode:
 
-3. Configure worker nodes:
-   ```shell
-   sudo nano /opt/hadoop/etc/hadoop/workers
-   ```
-   Add the hostnames of all worker nodes, one per line.
-   To create a Hadoop cluster, add the hostnames or IP addresses of your worker nodes to
-   the `/opt/hadoop/etc/hadoop/workers` file. If our example, if using hostnames, add "raspberrypiworker" and if using
-   IP addresses, replace "192.168.1.101" with the actual IP address. The file should only contain worker nodes, not the
-   master node. The Hadoop system uses this file to determine which nodes to start DataNode and NodeManager processes
-   on. The file should be updated based on your setup.
+```shell
+hdfs namenode -format
+```
 
-4. Start HDFS:
-   ```shell
-   /opt/hadoop/sbin/start-dfs.sh
-   ```
+2. Edit the workers file:
 
-5. Address potential issues:
-    - For stack guard warnings:
-      ```shell
-      sudo apt-get install execstack
-      sudo execstack -c /opt/hadoop/lib/native/libhadoop.so.1.0.0
-      ```
-    - For native library issues:
-      ```shell
-      sudo apt-get install build-essential
-      ```
+```shell
+sudo nano /opt/hadoop/etc/hadoop/workers
+```
 
-6. Verify HDFS status:
-   ```shell
-   /opt/hadoop/bin/hdfs dfsadmin -report
-   ```
+Add DataNode hostnames:
 
-## 6. Testing HDFS
+```shell
+datanode1
+# Add more hostnames as needed
+```
 
-This test is designed to verify the basic functionality of your HDFS setup on your Raspberry Pi cluster. It includes
-commands like hdfs dfs -mkdir /user and hdfs dfs -mkdir /user/$USER, which create directories in HDFS. The test expects
-no output if successful, or an error message if the directories already exist or there's a permission issue. The test
-also creates a local file named 'testfile.txt' with the content "Hello, HDFS!". It uploads the local file to the '/test'
-directory in HDFS. The test aims to verify that all commands execute without errors, and the '/user', '/user/$USER',
-and '/test' directories are created in HDFS. The test also allows you to list the contents of the '/test' directory and
-read the file from HDFS, confirming that the basic HDFS operations are working correctly on your Raspberry Pi cluster.
+3. Start HDFS:
+
+```shell
+start-dfs.sh
+```
+
+4. Verify HDFS status:
+
+```shell
+hdfs dfsadmin -report
+```
+
+## 5. Test HDFS
 
 Perform these basic HDFS operations:
 
@@ -331,21 +367,51 @@ hdfs dfs -ls /test
 hdfs dfs -cat /test/testfile.txt
 ```
 
-## 7. Monitoring and Troubleshooting
+## 6. Monitor and Troubleshoot
 
-- Check logs:
-  ```shell
-  tail -f /opt/hadoop/logs/*
-  ```
+1. Check logs:
+    - ```shell 
+           tail -f /opt/hadoop/logs/*
+     ```
+2. Monitor web interfaces:
+    - NameNode: http://namenode:9870
+    - DataNode: http://datanode1:9864
+3. Common issues and solutions:
+    - Firewall settings: Ensure ports 9000, 9870, and 9864 are open.
+    - Java version compatibility: Verify Java version is compatible with Hadoop.
+    - Hostname resolution: Ensure /etc/hosts is correctly configured on all nodes.
+    - DataNode not connecting to NameNode:
+        - Check if DataNode process is running: `jps`
+        - Verify network connectivity: `ping namenode`
+    - Missing blocks or corrupt files:
+        - Run HDFS filesystem check: `hdfs fsck /`
+        - If necessary, delete corrupt files: `hdfs fsck / -delete`
+    - Configuration parsing errors:
+        - Double-check XML syntax in configuration files, ensuring all tags are properly closed.
+4. Performance Optimization:
+    - Adjust memory settings in hadoop-env.sh, yarn-site.xml, and mapred-site.xml based on your Raspberry Pi's
+      resources.
+    - Consider overclocking your Raspberry Pi for better performance (at the cost of higher power consumption and heat
+      generation).
+5. Security Considerations:
+    - Implement Kerberos authentication for production environments.
+    - Use firewalls to restrict access to Hadoop ports.
+    - Regularly update and patch your system.
 
-- Monitor web interfaces:
-    - NameNode: http://<master-node>:9870
-    - DataNode: http://<data-node>:9864
+## 7. Stopping the Cluster
 
-- Common issues:
-    - Firewall settings: Ensure necessary ports are open
-    - Java version compatibility: Verify Java version is compatible with Hadoop
-    - Hostname resolution: Ensure /etc/hosts is correctly configured on all nodes
+To stop HDFS:
 
-Remember to adjust configurations for production use, implement security measures, and regularly back up important data.
-Consistency in configurations across all nodes is crucial for proper cluster operation.
+```shell
+stop-dfs.sh
+```
+
+## Conclusion
+
+This setup provides a functional HDFS cluster on Raspberry Pi devices. While not suitable for production workloads, it
+serves as an excellent learning tool for understanding distributed systems and Hadoop ecosystem technologies. Remember
+to adjust configurations for your specific needs, implement proper security measures, and regularly maintain your
+cluster.
+
+For production use or larger-scale projects, consider upgrading to more powerful hardware and implementing additional
+Hadoop ecosystem components like YARN and MapReduce.
