@@ -1,8 +1,9 @@
 # Setting Up PySpark on Raspberry Pi Cluster: A Comprehensive Guide
 
 For this tutorial we will go through a rather exciting project of setting up a PySpark cluster on Raspberry Pi devices.
-This
-is a fantastic way to:
+We will also go about setting up JupyterLabs on the master node to interact with the cluster.
+
+This is a fantastic way to:
 
 - Learn about PySpark and big data processing
 - Get hands-on experience with Linux and distributed systems
@@ -263,13 +264,18 @@ Here's a Python script that you can run on your PySpark cluster:
 nano word_count_test.py
 ```
 
-Add the script: 
+Add the script:
+
 ```python
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import explode, split, lower, col, count
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("WordCountExample").master("spark://192.168.3.52:7077").config("spark.driver.port", "4040").config("spark.driver.host", "192.168.3.52").config("spark.driver.bindAddress", "0.0.0.0").config("spark.blockManager.port", "4041").getOrCreate()
+spark = SparkSession.builder \
+    .appName("JupyterLabSparkTest") \
+    .master("spark://master:7077") \
+    .config("spark.driver.host", "master") \
+    .getOrCreate()
 
 # Sample text (you can replace this with a larger text file for a more comprehensive test)
 text = """
@@ -283,7 +289,8 @@ This example demonstrates a simple word count using PySpark on a Raspberry Pi cl
 df = spark.createDataFrame([(text,)], ["text"])
 
 # Split the text into words, explode the words into rows, and count occurrences
-word_counts = df.select(explode(split(lower(col("text")), "\\s+")).alias("word")).groupBy("word").agg(count("*").alias("count")).orderBy("count", ascending=False)
+word_counts = df.select(explode(split(lower(col("text")), "\\s+")).alias("word")).groupBy("word").agg(
+  count("*").alias("count")).orderBy("count", ascending=False)
 
 # Show the results
 print("Word Count Results:")
@@ -293,7 +300,7 @@ word_counts.show(20, truncate=False)
 spark.stop()
 ```
 
-And run it using: 
+And run it using:
 
 ```shell
 $SPARK_HOME/bin/spark-submit \
@@ -301,6 +308,75 @@ $SPARK_HOME/bin/spark-submit \
 --executor-memory 512m \
 --total-executor-cores 2 \
 word_count_test.py
+```
+
+## 7. Set up JupyterLabs
+
+Start by setting up a venv on your Master Pi.
+We do this because the OS comes with Python 2.7 and Python 3.7 pre-installed. We need to create a virtual environment
+to install the required packages for JupyterLab and PySpark.
+
+```shell
+python3 -m venv ~/spark_jupyter_env
+source ~/spark_jupyter_env/bin/activate
+```
+
+1. Install JupyterLab:
+
+```shell
+pip install jupyterlab
+```
+
+2. Install PySpark kernel for Jupyter:
+
+```shell
+pip install pyspark
+```
+
+3. Configure environment variables:
+
+Add these lines to your ~/.bashrc file:
+
+```shell
+echo "export PYSPARK_DRIVER_PYTHON=jupyter'"  >> ~/.bashrc
+echo "export PYSPARK_DRIVER_PYTHON_OPTS='lab'" >> ~/.bashrc
+echo "export PYSPARK_PYTHON=/usr/bin/python3" >> ~/.bashrc
+```
+
+Then, source your .bashrc file:
+
+```shell
+source ~/.bashrc
+```
+
+4. Start JupyterLab:
+
+You can now start JupyterLab with PySpark integration by running:
+
+```shell
+jupyter lab --ip=<master ip> --no-browser --port=8888
+```
+
+This command will start JupyterLab and automatically create a SparkSession.
+
+5. Create a new notebook:
+
+In JupyterLab, create a new notebook and select the "PySpark"  or "Python" kernel.
+
+6. Test your Spark connection:
+
+In a notebook cell, you can test your Spark connection with:
+
+```python
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("JupyterLabSparkTest") \
+    .master("spark://master:7077") \
+    .config("spark.driver.host", "master") \
+    .getOrCreate()
+
+print(spark.version)
 ```
 
 ## Troubleshooting
