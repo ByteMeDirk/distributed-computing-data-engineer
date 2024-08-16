@@ -104,13 +104,13 @@ sudo hostnamectl set-hostname worker1  # For the first worker node
 # Repeat for additional nodes
 ```
 
-5. Reboot to apply changes:
+7. Reboot to apply changes:
 
 ```shell
 sudo reboot
 ```
 
-## 2. SSH Key Authentication Setup (Master Nodes)
+## 2. SSH Key Authentication Setup (Master Node)
 
 1. Generate SSH keys on the master Pi:
 
@@ -271,10 +271,12 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import explode, split, lower, col, count
 
 # Initialize Spark session
-spark = SparkSession.builder \
-    .appName("JupyterLabSparkTest") \
-    .master("spark://master:7077") \
-    .config("spark.driver.host", "master") \
+spark = SparkSession.builder.appName("JupyterLabSparkTest")\
+    .master("spark://<master ip>:7077")\
+    .config("spark.driver.port", "4040")\
+    .config("spark.driver.host", "<master ip>")\
+    .config("spark.driver.bindAddress", "0.0.0.0")\
+    .config("spark.blockManager.port", "4041")\
     .getOrCreate()
 
 # Sample text (you can replace this with a larger text file for a more comprehensive test)
