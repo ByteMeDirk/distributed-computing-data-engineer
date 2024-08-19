@@ -162,8 +162,7 @@ registry.
 3. Apply the deployment:
 
 Kubectl is the command-line tool for interacting with Kubernetes clusters. We use it to apply the deployment
-configuration
-to the cluster.
+configuration to the cluster.
 
 Kubectl commands include:
 
@@ -392,11 +391,6 @@ helm uninstall data-processor
 ```
 
 # Conclusion
-
-To enhance the conclusion of your tutorial, you could add a section on best practices and further learning. Here's an
-expanded conclusion that incorporates these elements:
-
-## Conclusion
 
 In this tutorial, we introduced you to the core concepts of containers, Kubernetes, and Helm, focusing on local
 development and a simple data processing script. We covered building a Docker image, running a container locally,
