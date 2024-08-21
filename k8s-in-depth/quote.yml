@@ -1,0 +1,81 @@
+---
+# Development namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    name: development
+
+---
+# Quotes App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quote-container
+  namespace: development
+  labels:
+    app: quote-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: quote-service
+  template:
+    metadata:
+      labels:
+        app: quote-service
+    spec:
+      containers:
+        - name: quote-container
+          image: datawire/quote:0.5.0
+          ports:
+            - containerPort: 8080
+
+---
+# Busybox
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox
+  namespace: default
+  labels:
+    app: busybox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      containers:
+      - name: busybox-container
+        image: busybox:latest
+        # Keep the container running
+        command: [ "/bin/sh", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        resources:
+          requests:
+            cpu: 30m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+
+---
+# K8s Load Balancer
+apiVersion: v1
+kind: Service
+metadata:
+    name: demo-service
+    namespace: development
+spec:
+    selector:
+        app: pod-info
+    ports:
+        - port: 80
+          targetPort: 3000
+    type: LoadBalancer
